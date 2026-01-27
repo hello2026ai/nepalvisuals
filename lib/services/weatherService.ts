@@ -19,7 +19,6 @@ export const WeatherService = {
       });
 
       const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
-      console.log('WeatherService: Fetching', url);
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -67,7 +66,6 @@ export const WeatherService = {
         });
         
         const url = `https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`;
-        console.log('WeatherService: Geocoding', url);
         
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Geocoding API error: ${response.statusText}`);

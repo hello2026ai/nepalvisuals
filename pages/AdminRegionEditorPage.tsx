@@ -106,6 +106,31 @@ const AdminRegionEditorPage: React.FC = () => {
                                     className="w-full border border-admin-border rounded-lg text-sm focus:ring-2 focus:ring-admin-primary focus:border-transparent transition"
                                 ></textarea>
                             </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium text-admin-text-primary block mb-1">Latitude</label>
+                                    <input 
+                                        type="number" 
+                                        step="any"
+                                        placeholder="e.g. 27.9881"
+                                        value={region.latitude || ''} 
+                                        onChange={(e) => handleChange('latitude', parseFloat(e.target.value))}
+                                        className="w-full border border-admin-border rounded-lg text-sm focus:ring-2 focus:ring-admin-primary focus:border-transparent transition" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-admin-text-primary block mb-1">Longitude</label>
+                                    <input 
+                                        type="number" 
+                                        step="any"
+                                        placeholder="e.g. 86.9250"
+                                        value={region.longitude || ''} 
+                                        onChange={(e) => handleChange('longitude', parseFloat(e.target.value))}
+                                        className="w-full border border-admin-border rounded-lg text-sm focus:ring-2 focus:ring-admin-primary focus:border-transparent transition" 
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 

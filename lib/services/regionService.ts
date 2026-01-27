@@ -40,6 +40,20 @@ export const RegionService = {
     if (error) throw error
     return Array.isArray(data) && data.length > 0
   },
+  async getByName(regionName: string) {
+    const name = (regionName || '').trim()
+    const { data, error } = await supabase
+      .from('regions')
+      .select('*')
+      .ilike('name', name)
+      .maybeSingle(); // Use maybeSingle to avoid error if not found
+    
+    if (error) {
+        console.error('Error fetching region by name:', error);
+        return null;
+    }
+    return data as Region;
+  },
   // Simple retry wrapper for existence check (3 attempts)
   async existsByNameWithRetry(regionName: string, attempts: number = 3) {
     let lastError: any = null

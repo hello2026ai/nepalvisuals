@@ -9,6 +9,7 @@ import { Tour } from '../lib/services/tourService';
 import { TourInfoOverlay } from '../components/tour/TourInfoOverlay';
 import TrekMap from '../components/tour/TrekMap';
 import { WeatherService, DailyForecast } from '../lib/services/weatherService';
+import { RegionService } from '../lib/services/regionService';
 import { Helmet } from 'react-helmet-async';
 import { sanitizeHtml, stripHtml } from '../lib/utils/htmlUtils';
 import './TripDetailsPage.css'; // Import the override styles
@@ -398,8 +399,6 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
 
     React.useEffect(() => {
         const fetchWeather = async () => {
-            console.log("TripDetailsPage: fetchWeather started. parsedGeoJson:", parsedGeoJson);
-            
             let coord: number[] | null = null;
 
             try {
@@ -438,45 +437,71 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
                     };
 
                     coord = findCoord(parsedGeoJson);
-                    console.log("TripDetailsPage: Extracted coordinates from GeoJSON:", coord);
-                } else {
-                    console.log("TripDetailsPage: parsedGeoJson is null/undefined");
                 }
 
                 // 2. Fallback to Geocoding if no coordinates found
-                if (!coord && tour) {
-                    console.log("TripDetailsPage: No coordinates from GeoJSON. Attempting fallback geocoding...");
-                    const locationQuery = tour.destination || tour.region || tour.name;
-                    if (locationQuery) {
-                         console.log(`TripDetailsPage: Geocoding query: ${locationQuery}`);
-                         const geoResult = await WeatherService.getCoordinates(locationQuery);
-                         if (geoResult) {
-                             coord = [geoResult.lon, geoResult.lat];
-                             console.log("TripDetailsPage: Geocoding successful:", coord);
-                         } else {
-                             console.warn("TripDetailsPage: Geocoding failed for query:", locationQuery);
-                         }
-                    } else {
-                        console.warn("TripDetailsPage: No location info available for geocoding");
+              if (!coord && tour) {
+                // 2a. Try to get from RegionService first (most accurate for regions)
+                if (tour.region) {
+                    try {
+                        const regionData = await RegionService.getByName(tour.region);
+                        if (regionData && regionData.latitude && regionData.longitude) {
+                            coord = [regionData.longitude, regionData.latitude];
+                        }
+                    } catch (e) {
+                        // Region lookup failed, continue silently
                     }
                 }
+
+                // 2b. If still no coord, try generic geocoding with smart fallbacks
+                if (!coord) {
+                    const baseQuery = tour.destination || tour.region || tour.name;
+                    
+                    if (baseQuery) {
+                        const queries = [baseQuery];
+                        
+                        // Add variations if it contains "Region"
+                        if (baseQuery.includes('Region')) {
+                            const stripped = baseQuery.replace(/Region/i, '').trim();
+                            if (stripped) {
+                                queries.push(stripped);
+                                queries.push(`${stripped} Nepal`);
+                            }
+                        } else {
+                            queries.push(`${baseQuery} Nepal`);
+                        }
+                        
+                        // Specific overrides for known tricky regions
+                        if (baseQuery === 'Everest Region') queries.push('Mount Everest');
+                        
+                        // Remove duplicates
+                        const uniqueQueries = [...new Set(queries)];
+                        
+                        for (const query of uniqueQueries) {
+                             try {
+                                const geoResult = await WeatherService.getCoordinates(query);
+                                if (geoResult) {
+                                    coord = [geoResult.lon, geoResult.lat];
+                                    break; // Stop once we find a match
+                                }
+                             } catch (err) {
+                                 // Geocoding error, try next query
+                             }
+                        }
+                    }
+                }
+              }
                 
                 // 3. Fetch Weather if we have coordinates
                 if (coord) {
                      const [lon, lat] = coord; // GeoJSON is [lon, lat]
-                     console.log(`TripDetailsPage: Fetching weather for lat=${lat}, lon=${lon}`);
                      
                      if (typeof lat === 'number' && typeof lon === 'number') {
                          const data = await WeatherService.getForecast(lat, lon);
-                         console.log("TripDetailsPage: Weather data received:", data);
                          if (data && data.length > 0) {
                             setWeatherData(data);
-                         } else {
-                            console.warn("TripDetailsPage: Weather data is empty");
                          }
                      }
-                } else {
-                    console.warn("TripDetailsPage: Could not determine coordinates (GeoJSON or Geocoding)");
                 }
                 
             } catch (err) {

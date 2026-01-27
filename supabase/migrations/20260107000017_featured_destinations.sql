@@ -54,7 +54,7 @@ VALUES
         '$1,200',
         '14 Days',
         4.9,
-        '/trip/everest-base-camp',
+        '/trip/everest-base-camp-trek',
         1
     ),
     (
@@ -64,7 +64,7 @@ VALUES
         '$950',
         '12 Days',
         4.8,
-        '/trip/annapurna-circuit',
+        '/trip/annapurna-circuit-trek-12-days',
         2
     ),
     (
@@ -74,6 +74,6 @@ VALUES
         '$800',
         '10 Days',
         4.7,
-        '/trip/langtang-valley',
+        '/trip/langtang-valley-trek-10-days',
         3
     );
