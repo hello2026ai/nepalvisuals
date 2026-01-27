@@ -19,6 +19,7 @@ export const HeroSearch: React.FC = () => {
     const debouncedQuery = useDebounce(query, 300);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Measure position for portal
     useLayoutEffect(() => {
@@ -86,13 +87,20 @@ export const HeroSearch: React.FC = () => {
     // Handle click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+            if (
+                containerRef.current && 
+                !containerRef.current.contains(event.target as Node) &&
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
                 setIsOpen(false);
             }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
     // Handle keyboard navigation
@@ -223,9 +231,17 @@ export const HeroSearch: React.FC = () => {
                 dropdownRect
                     ? createPortal(
                         <div
+                            ref={dropdownRef}
                             id="search-suggestions"
                             role="listbox"
-                            style={{ position: 'fixed', left: dropdownRect.left, top: dropdownRect.top, width: dropdownRect.width, zIndex: 9999 }}
+                            style={{ 
+                                position: 'fixed', 
+                                left: dropdownRect.left, 
+                                top: dropdownRect.top, 
+                                width: dropdownRect.width, 
+                                zIndex: 9999,
+                                backgroundColor: '#0c223d' 
+                            }}
                             className="bg-surface-dark/95 backdrop-blur-xl border-x border-b border-white/10 rounded-b-2xl shadow-2xl overflow-hidden"
                         >
                             {loading ? (

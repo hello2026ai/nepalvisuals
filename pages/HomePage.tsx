@@ -46,7 +46,7 @@ const HomePage: React.FC = () => {
     }, [stats]);
     return (
         <>
-            <header className="relative -mt-[100px] min-h-[85vh] flex items-center justify-center z-20">
+            <header className="relative -mt-[100px] min-h-[85vh] flex items-center justify-center z-50">
                 <div className="absolute inset-0 z-0 overflow-hidden rounded-b-2xl md:rounded-b-[3rem]">
                     <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB7oJvicfMYF2tTDspjyC_dNc6L_u3AS3u1gLba-Lnwk50u3YZOQu3BkxHIjp6qOm8t6-NdGiFKjAxtFwVL1N5XTTmnRQEsYogfMQZfRLPcoYucuMk0ybPhdPiwooV3LVT_bSwr3Ld2FpmTFJP4MwAgLfiztLA7j1qaUiTbpBEa-bWWzUGuIU_wFBqd0T-S_5J3Xle-0CUZZp84IdPuI3fpZyaG0t50baFmMaApe8X6CrvYDROuk7W1PI6KncjUpZ3zKUnhjmCd4hWa')" }}>
                     </div>
