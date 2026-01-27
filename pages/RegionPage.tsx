@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useRegionsData } from '../lib/hooks/useRegionsData';
 import type { Region } from '../lib/services/regionService';
 import { sanitizeHtml } from '../lib/utils/htmlUtils';
+import { RegionPageSkeleton } from '../components/skeletons/RegionPageSkeleton';
 
 import { RegionTreksSection } from '../components/region/RegionTreksSection';
 
@@ -19,6 +20,10 @@ const RegionPage: React.FC = () => {
       const match = regions.find(r => slugifyName(r.name) === (regionName || '').toLowerCase())
       return match
     }, [regions, regionName])
+
+    if (loading) {
+        return <RegionPageSkeleton />;
+    }
 
     if (!loading && !error && !region) {
         return (

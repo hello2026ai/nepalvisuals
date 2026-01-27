@@ -12,7 +12,6 @@ export function useRegionsData() {
     setError(null)
     try {
       const data = await RegionService.getAllRegions()
-      console.log('Fetched regions:', data);
       const sorted = [...data].sort((a, b) =>
         (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
       )

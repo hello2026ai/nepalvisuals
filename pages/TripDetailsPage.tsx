@@ -4,9 +4,11 @@ import { createPortal } from 'react-dom';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTourData } from '../lib/hooks/useTourData';
 import { ExpandableContent } from '../components/common/ExpandableContent';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+import { TripDetailsSkeleton } from '../components/skeletons/TripDetailsSkeleton';
 import { Tour } from '../lib/services/tourService';
 import { TourInfoOverlay } from '../components/tour/TourInfoOverlay';
+import TrekMap from '../components/tour/TrekMap';
+import { WeatherService, DailyForecast } from '../lib/services/weatherService';
 import { Helmet } from 'react-helmet-async';
 import { sanitizeHtml, stripHtml } from '../lib/utils/htmlUtils';
 import './TripDetailsPage.css'; // Import the override styles
@@ -327,11 +329,33 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
     const [filterYear, setFilterYear] = React.useState<number | 'all'>('all');
     const [filterMonth, setFilterMonth] = React.useState<number | 'all'>('all');
 
+    const [weatherData, setWeatherData] = React.useState<DailyForecast[]>([]);
+    const [weatherLocation, setWeatherLocation] = React.useState<string>('the mountains');
+
     const galleryImages: GalleryImage[] = React.useMemo(() => {
-        const fallback = 'https://placehold.co/1200x800?text=Tour+Image';
-        const src = tour?.featured_image || fallback;
-        const alt = tour?.name || 'Tour image';
-        return src ? [{ src, alt }] : [];
+        const images: GalleryImage[] = [];
+        
+        // Add featured image first
+        if (tour?.featured_image) {
+            images.push({ src: tour.featured_image, alt: tour.name || 'Featured image' });
+        }
+        
+        // Add gallery images
+        if (tour?.gallery_images && tour.gallery_images.length > 0) {
+            tour.gallery_images.forEach((imgUrl, index) => {
+                // Avoid duplicates if featured image is also in gallery
+                if (imgUrl !== tour.featured_image) {
+                    images.push({ src: imgUrl, alt: `${tour.name} gallery image ${index + 1}` });
+                }
+            });
+        }
+        
+        // Fallback if no images at all
+        if (images.length === 0) {
+            images.push({ src: 'https://placehold.co/1200x800?text=Tour+Image', alt: tour?.name || 'Tour image' });
+        }
+        
+        return images;
     }, [tour]);
 
     const reviewsData: Review[] = React.useMemo(() => [], []);
@@ -353,15 +377,114 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
         return fixedDeparturesData.map(d => d.startDate);
     }, [fixedDeparturesData]);
 
-    const forecastData = React.useMemo(() => [
-        { day: 'Mon', condition: 'Sunny', high: 5, low: -6 },
-        { day: 'Tue', condition: 'Partly Cloudy', high: 3, low: -7 },
-        { day: 'Wed', condition: 'Light Snow', high: 0, low: -10 },
-        { day: 'Thu', condition: 'Sunny', high: 4, low: -8 },
-        { day: 'Fri', condition: 'Windy', high: 2, low: -9 },
-        { day: 'Sat', condition: 'Cloudy', high: 1, low: -11 },
-        { day: 'Sun', condition: 'Heavy Snow', high: -2, low: -12 },
-    ], []);
+    const parsedGeoJson = React.useMemo(() => {
+        if (!tour?.route_geojson) return null;
+        if (typeof tour.route_geojson === 'string') {
+            try {
+                return JSON.parse(tour.route_geojson);
+            } catch (e) {
+                console.error("Failed to parse route_geojson", e);
+                return null;
+            }
+        }
+        return tour.route_geojson;
+    }, [tour]);
+
+    React.useEffect(() => {
+        if (tour?.destination || tour?.region) {
+            setWeatherLocation(tour.destination || tour.region);
+        }
+    }, [tour]);
+
+    React.useEffect(() => {
+        const fetchWeather = async () => {
+            console.log("TripDetailsPage: fetchWeather started. parsedGeoJson:", parsedGeoJson);
+            
+            let coord: number[] | null = null;
+
+            try {
+                // 1. Try to get coordinates from GeoJSON
+                if (parsedGeoJson) {
+                    // Robust recursive coordinate extraction
+                    const findCoord = (obj: any): number[] | null => {
+                        if (!obj) return null;
+                        
+                        // If it has a geometry property (Feature), try that
+                        if (obj.geometry) return findCoord(obj.geometry);
+                        
+                        // If it has features (FeatureCollection), try to find valid coordinates in any feature
+                        if (obj.features && Array.isArray(obj.features)) {
+                            for (const feature of obj.features) {
+                                const result = findCoord(feature);
+                                if (result) return result;
+                            }
+                        }
+
+                        // If it has coordinates, try to extract from there
+                        if (obj.coordinates && Array.isArray(obj.coordinates)) {
+                            let c = obj.coordinates;
+                            // Drill down until we find a number array (Leaflet/GeoJSON structure)
+                            // This handles Point [x,y], LineString [[x,y]...], Polygon [[[x,y]...]]
+                            while (Array.isArray(c) && c.length > 0 && Array.isArray(c[0])) {
+                                c = c[0];
+                            }
+                            // Check if we found a [lon, lat] pair
+                            if (Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number') {
+                                return c;
+                            }
+                        }
+                        
+                        return null;
+                    };
+
+                    coord = findCoord(parsedGeoJson);
+                    console.log("TripDetailsPage: Extracted coordinates from GeoJSON:", coord);
+                } else {
+                    console.log("TripDetailsPage: parsedGeoJson is null/undefined");
+                }
+
+                // 2. Fallback to Geocoding if no coordinates found
+                if (!coord && tour) {
+                    console.log("TripDetailsPage: No coordinates from GeoJSON. Attempting fallback geocoding...");
+                    const locationQuery = tour.destination || tour.region || tour.name;
+                    if (locationQuery) {
+                         console.log(`TripDetailsPage: Geocoding query: ${locationQuery}`);
+                         const geoResult = await WeatherService.getCoordinates(locationQuery);
+                         if (geoResult) {
+                             coord = [geoResult.lon, geoResult.lat];
+                             console.log("TripDetailsPage: Geocoding successful:", coord);
+                         } else {
+                             console.warn("TripDetailsPage: Geocoding failed for query:", locationQuery);
+                         }
+                    } else {
+                        console.warn("TripDetailsPage: No location info available for geocoding");
+                    }
+                }
+                
+                // 3. Fetch Weather if we have coordinates
+                if (coord) {
+                     const [lon, lat] = coord; // GeoJSON is [lon, lat]
+                     console.log(`TripDetailsPage: Fetching weather for lat=${lat}, lon=${lon}`);
+                     
+                     if (typeof lat === 'number' && typeof lon === 'number') {
+                         const data = await WeatherService.getForecast(lat, lon);
+                         console.log("TripDetailsPage: Weather data received:", data);
+                         if (data && data.length > 0) {
+                            setWeatherData(data);
+                         } else {
+                            console.warn("TripDetailsPage: Weather data is empty");
+                         }
+                     }
+                } else {
+                    console.warn("TripDetailsPage: Could not determine coordinates (GeoJSON or Geocoding)");
+                }
+                
+            } catch (err) {
+                console.error("Failed to load weather", err);
+            }
+        };
+        fetchWeather();
+    }, [parsedGeoJson, tour]);
 
     const [isSticky, setIsSticky] = React.useState(false);
     const [activeSection, setActiveSection] = React.useState('overview');
@@ -374,6 +497,7 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
 
     const pageHeaderRef = React.useRef<HTMLElement>(null);
     const overviewRef = React.useRef<HTMLElement>(null);
+    const mapRef = React.useRef<HTMLElement>(null);
     const highlightsRef = React.useRef<HTMLElement>(null);
     const weatherRef = React.useRef<HTMLElement>(null);
     const itineraryRef = React.useRef<HTMLElement>(null);
@@ -383,6 +507,7 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
 
     const sections = React.useMemo(() => [
         { id: 'overview', ref: overviewRef, name: 'Overview' },
+        { id: 'map', ref: mapRef, name: 'Route Map' },
         { id: 'highlights', ref: highlightsRef, name: 'Trip Highlights' },
         { id: 'gallery', ref: galleryRef, name: 'Gallery' },
         { id: 'itinerary', ref: itineraryRef, name: 'Itinerary' },
@@ -571,11 +696,7 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
     const activeSectionName = sections.find(s => s.id === activeSection)?.name || 'Overview';
     
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background-dark">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
+        return <TripDetailsSkeleton />;
     }
 
     if (error || !tour) {
@@ -794,25 +915,32 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
                             <div className="bg-surface-dark border border-white/5 rounded-3xl p-6">
                                 <div className="flex items-center gap-3 text-sm text-text-secondary mb-6">
                                     <span className="material-symbols-outlined text-base">info</span>
-                                    <p>Forecast for Gorak Shep (5,164m). Weather can change rapidly in the mountains.</p>
+                                    <p>Forecast for {weatherLocation}. Weather can change rapidly in the mountains.</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
-                                    {forecastData.map((forecast, index) => {
-                                        const { icon, color } = getWeatherIcon(forecast.condition);
-                                        return (
-                                            <div key={index} className={`p-4 rounded-2xl flex flex-col items-center text-center transition-all duration-300 ${index === 0 ? 'bg-primary/10 border-2 border-primary' : 'bg-surface-darker border border-transparent hover:border-white/10'}`}>
-                                                <p className={`font-bold ${index === 0 ? 'text-primary' : 'text-white'}`}>{forecast.day}</p>
-                                                <div className="my-3">
-                                                    <span className={`material-symbols-outlined text-4xl ${color}`}>{icon}</span>
+                                    {weatherData.length > 0 ? (
+                                        weatherData.map((forecast, index) => {
+                                            const { icon, color } = getWeatherIcon(forecast.condition);
+                                            return (
+                                                <div key={index} className={`p-4 rounded-2xl flex flex-col items-center text-center transition-all duration-300 ${index === 0 ? 'bg-primary/10 border-2 border-primary' : 'bg-surface-darker border border-transparent hover:border-white/10'}`}>
+                                                    <p className={`font-bold ${index === 0 ? 'text-primary' : 'text-white'}`}>{forecast.day}</p>
+                                                    <div className="my-3">
+                                                        <span className={`material-symbols-outlined text-4xl ${color}`}>{icon}</span>
+                                                    </div>
+                                                    <div className="font-bold">
+                                                        <span className="text-white">{forecast.high}°</span>
+                                                        <span className="text-text-secondary/70"> / {forecast.low}°</span>
+                                                    </div>
+                                                    <p className="text-xs text-text-secondary mt-1 capitalize">{forecast.condition}</p>
                                                 </div>
-                                                <div className="font-bold">
-                                                    <span className="text-white">{forecast.high}°</span>
-                                                    <span className="text-text-secondary/70"> / {forecast.low}°</span>
-                                                </div>
-                                                <p className="text-xs text-text-secondary mt-1 capitalize">{forecast.condition}</p>
-                                            </div>
-                                        )
-                                    })}
+                                            )
+                                        })
+                                    ) : (
+                                        <div className="col-span-full text-center text-text-secondary py-8">
+                                            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">cloud_off</span>
+                                            <p>Weather forecast unavailable for this location.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </section>
@@ -836,6 +964,16 @@ const TripDetailsPage: React.FC<TripDetailsPageProps> = ({ setIsHeaderVisible })
                                 )}
                             </div>
                         </section>
+
+                        {/* Route Map Section */}
+                        {tour.route_geojson && (
+                            <section id="map" ref={mapRef}>
+                                <h2 className="text-3xl font-bold text-white mb-8">Route Map</h2>
+                                <div className="bg-surface-dark border border-white/5 rounded-2xl overflow-hidden shadow-lg">
+                                    <TrekMap geoJsonData={parsedGeoJson} />
+                                </div>
+                            </section>
+                        )}
                         
                         {/* FAQ Section */}
                         <section id="faq" ref={faqRef}>

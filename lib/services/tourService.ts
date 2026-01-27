@@ -36,10 +36,10 @@ export interface Tour {
   category: string | null;
   status: 'Published' | 'Draft';
   price: number;
-  duration: string | null;
+  duration: number | null;
   difficulty: string | null;
-  guide_language: string | null;
-  tour_type: string | null;
+  // guide_language removed in migration
+  tour_type: string | number | null; // Supports legacy string or new numeric code
   description: string | null;
   meta_title: string | null;
   meta_description: string | null;
@@ -49,6 +49,7 @@ export interface Tour {
   created_at?: string;
   updated_at?: string;
   published_at?: string;
+  route_geojson?: any;
   // Joined fields
   itineraries?: ItineraryItem[];
   tour_highlights?: TourHighlight[];
@@ -182,11 +183,14 @@ export interface TourFilterOptions {
   region?: string;
   minPrice?: number;
   maxPrice?: number;
+  minDuration?: number;
+  maxDuration?: number;
   difficulty?: string;
   status?: 'Published' | 'Draft';
   category?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'price_asc' | 'price_desc' | 'duration_asc' | 'duration_desc' | 'newest';
 }
 
 export const TourService = {
@@ -221,12 +225,34 @@ export const TourService = {
       query = query.lte('price', filters.maxPrice);
     }
 
+    if (filters.minDuration !== undefined) {
+      query = query.gte('duration', filters.minDuration);
+    }
+
+    if (filters.maxDuration !== undefined) {
+      query = query.lte('duration', filters.maxDuration);
+    }
+
     const page = filters.page || 1;
     const limit = filters.limit || 100; // Default limit
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    query = query.order('created_at', { ascending: false }).range(from, to);
+    // Apply sorting
+    if (filters.sortBy === 'price_asc') {
+      query = query.order('price', { ascending: true });
+    } else if (filters.sortBy === 'price_desc') {
+      query = query.order('price', { ascending: false });
+    } else if (filters.sortBy === 'duration_asc') {
+      query = query.order('duration', { ascending: true });
+    } else if (filters.sortBy === 'duration_desc') {
+      query = query.order('duration', { ascending: false });
+    } else {
+      // Default to newest
+      query = query.order('created_at', { ascending: false });
+    }
+
+    query = query.range(from, to);
 
     const { data, error, count } = await query;
     
@@ -240,7 +266,7 @@ export const TourService = {
 
   async getTourById(id: string) {
     // Fetch the main tour data first
-    const { data: tourData, error: tourError } = await supabase
+    const { data: tours, error: tourError } = await supabase
       .from('tours')
       .select(`
         *,
@@ -252,12 +278,14 @@ export const TourService = {
         faqs:tour_faqs (*)
       `)
       .eq('id', id)
-      .single();
+      .limit(1);
     
     if (tourError) {
       console.error('Error fetching tour by ID:', tourError);
       throw new Error(tourError.message);
     }
+    
+    const tourData = tours?.[0];
     
     if (!tourData) {
       throw new Error('Tour not found');
@@ -272,7 +300,7 @@ export const TourService = {
             
         if (!departureError && departureData) {
             departures = departureData as TourDeparture[];
-        } else if (departureError && departureError.code !== '42P01') {
+        } else if (departureError && departureError.code !== '42P01' && departureError.code !== 'PGRST205' && departureError.code !== 'PGRST100') {
             // Log warning but don't fail the whole request if departures fail
             // 42P01 is "undefined table", which we can ignore safely (treat as empty)
             console.warn('Warning: Failed to fetch tour departures', departureError);
@@ -293,7 +321,7 @@ export const TourService = {
         galleryImages = (galleryData as any[])
           .map((r) => r.image_url)
           .filter((v) => typeof v === 'string' && v.trim().length > 0);
-      } else if (galleryError && galleryError.code !== '42P01') {
+      } else if (galleryError && galleryError.code !== '42P01' && galleryError.code !== 'PGRST205' && galleryError.code !== 'PGRST100') {
         console.warn('Warning: Failed to fetch tour gallery images', galleryError);
       }
     } catch (err) {
@@ -317,7 +345,7 @@ export const TourService = {
 
   async getTourBySlug(slug: string) {
     // Fetch the main tour data by slug
-    const { data: tourData, error: tourError } = await supabase
+    const { data: tours, error: tourError } = await supabase
       .from('tours')
       .select(`
         *,
@@ -329,13 +357,15 @@ export const TourService = {
         faqs:tour_faqs (*)
       `)
       .eq('url_slug', slug)
-      .single();
+      .limit(1);
     
     if (tourError) {
       console.error('Error fetching tour by slug:', tourError);
       throw new Error(tourError.message);
     }
     
+    const tourData = tours?.[0];
+
     if (!tourData) {
       throw new Error('Tour not found');
     }
@@ -351,7 +381,7 @@ export const TourService = {
             
         if (!departureError && departureData) {
             departures = departureData as TourDeparture[];
-        } else if (departureError && departureError.code !== '42P01') {
+        } else if (departureError && departureError.code !== '42P01' && departureError.code !== 'PGRST205' && departureError.code !== 'PGRST100') {
             console.warn('Warning: Failed to fetch tour departures', departureError);
         }
     } catch (err) {
@@ -370,7 +400,7 @@ export const TourService = {
         galleryImages = (galleryData as any[])
           .map((r) => r.image_url)
           .filter((v) => typeof v === 'string' && v.trim().length > 0);
-      } else if (galleryError && galleryError.code !== '42P01') {
+      } else if (galleryError && galleryError.code !== '42P01' && galleryError.code !== 'PGRST205' && galleryError.code !== 'PGRST100') {
         console.warn('Warning: Failed to fetch tour gallery images', galleryError);
       }
     } catch (err) {
@@ -480,7 +510,7 @@ export const TourService = {
     const safeFields = [
       'name', 'url_slug', 'destination', 'region', 'country', 'category',
       'status', 'price', 'duration', 'difficulty', 'guide_language', 'tour_type', 'currency',
-      'description', 'meta_title', 'meta_description', 'featured_image' // published_at handled conditionally below
+      'description', 'meta_title', 'meta_description', 'featured_image', 'route_geojson' // published_at handled conditionally below
     ];
     
     // Create a safe update object with only valid fields

@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getCountries } from '../lib/utils/countries';
 
 const countryOptions = getCountries();
@@ -13,19 +13,43 @@ const addons = [
 ];
 
 const CheckoutPage: React.FC = () => {
-    const [numTravelers, setNumTravelers] = useState(2);
+    const location = useLocation();
+    const navigate = useNavigate();
+    
+    const bookingData = location.state as {
+        tourId: string;
+        tourName: string;
+        tourImage: string;
+        selectedDate: string;
+        selectedDepartureId: string | null;
+        guestCount: number;
+        basePrice: number;
+        totalPrice: number;
+    } | undefined;
+
+    const [numTravelers, setNumTravelers] = useState(bookingData?.guestCount || 2);
     const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({
         privateRoom: true,
         transfer: true,
     });
     const [paymentMethod, setPaymentMethod] = useState<'full' | 'partial'>('full');
 
+    // Redirect if no booking data is present (optional, or show default/empty state)
+    useEffect(() => {
+        if (!bookingData) {
+            // Uncomment to enforce selection flow
+            // navigate('/');
+        }
+    }, [bookingData, navigate]);
+
     const handleAddonToggle = (addonId: string) => {
         setSelectedAddons(prev => ({ ...prev, [addonId]: !prev[addonId] }));
     };
 
     const calculation = useMemo(() => {
-        const basePrice = numTravelers * 1200;
+        // Use passed basePrice or default to 1200
+        const unitPrice = bookingData?.basePrice || 1200;
+        const basePrice = numTravelers * unitPrice;
         const permitsAndFees = numTravelers * 50;
         let addonsTotal = 0;
         addons.forEach(addon => {
@@ -33,7 +57,7 @@ const CheckoutPage: React.FC = () => {
                 addonsTotal += addon.price;
             }
         });
-        const earlyBirdDiscount = -500;
+        const earlyBirdDiscount = -500; // This logic might need to be dynamic too
         const subtotal = basePrice + permitsAndFees + addonsTotal + earlyBirdDiscount;
         const taxes = subtotal * 0.10;
         const totalDue = subtotal + taxes;
@@ -49,7 +73,7 @@ const CheckoutPage: React.FC = () => {
             totalDue,
             partialAmount,
         };
-    }, [numTravelers, selectedAddons]);
+    }, [numTravelers, selectedAddons, bookingData]);
 
     const travelerForms = Array.from({ length: numTravelers }, (_, i) => (
         <div key={i} className={`bg-surface-darker/60 rounded-xl p-6 ${i > 0 ? 'mt-4' : ''}`}>
@@ -98,18 +122,27 @@ const CheckoutPage: React.FC = () => {
     return (
          <>
             <header className="relative -mt-[100px] min-h-[40vh] flex items-end justify-center overflow-hidden rounded-b-2xl md:rounded-b-[3rem]">
-                <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDRhAgmyafMtZInsKcZjC6PERny9fQkTYXnQc2xe3Dn2hSTQ2D2bEPyiLHkfuqDOIamvdyHiV6lOBJgYm_mzEkiQeGcxj6XcjWqapph7IcKty8Mcbs7CdDGengbgwALm5rAVVQmydirCKo5JLlaeh-L3z0AJYecOSmxkI8TpR7pMITU12XLou8iXgEwQe7_3NbQK8rZDzw39TV_j5JnhmpBQ55T2U0LJGQROBZEKe8IxNVO4-xOcOfSMr99VgNtWGMAriy0J_zOV2il')" }}>
+                <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: `url('${bookingData?.tourImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRhAgmyafMtZInsKcZjC6PERny9fQkTYXnQc2xe3Dn2hSTQ2D2bEPyiLHkfuqDOIamvdyHiV6lOBJgYm_mzEkiQeGcxj6XcjWqapph7IcKty8Mcbs7CdDGengbgwALm5rAVVQmydirCKo5JLlaeh-L3z0AJYecOSmxkI8TpR7pMITU12XLou8iXgEwQe7_3NbQK8rZDzw39TV_j5JnhmpBQ55T2U0LJGQROBZEKe8IxNVO4-xOcOfSMr99VgNtWGMAriy0J_zOV2il'}')` }}>
                 </div>
                 <div className="absolute inset-0 z-0 bg-gradient-to-t from-background-dark via-background-dark/90 to-background-dark/60"></div>
                 <div className="relative z-10 container mx-auto px-4 pb-12 max-w-7xl">
                     <div className="flex flex-col gap-4">
-                        <Link to="/trip/everest-base-camp" className="inline-flex items-center gap-2 text-text-secondary hover:text-white transition-colors text-sm font-medium w-fit">
+                        <Link to={bookingData ? `/trip/${bookingData.tourId}` : "/"} className="inline-flex items-center gap-2 text-text-secondary hover:text-white transition-colors text-sm font-medium w-fit">
                             <span className="material-symbols-outlined text-lg">arrow_back</span>
                             Back to Trip Details
                         </Link>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg">
-                            Checkout & <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">Payment</span>
+                            {bookingData?.tourName ? (
+                                <span>{bookingData.tourName}</span>
+                            ) : (
+                                <>Checkout & <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">Payment</span></>
+                            )}
                         </h1>
+                        {bookingData?.selectedDate && (
+                            <p className="text-xl text-white/80 font-medium">
+                                Start Date: {new Date(bookingData.selectedDate).toLocaleDateString('en-US', { dateStyle: 'long' })}
+                            </p>
+                        )}
                     </div>
                 </div>
             </header>

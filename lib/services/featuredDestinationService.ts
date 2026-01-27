@@ -66,7 +66,8 @@ export const featuredDestinationService = {
                 // Check for "Relation does not exist" (42P01) or Schema Cache Error (PGRST205)
                 // These indicate the table is missing.
                 if (error.code === '42P01' || error.code === 'PGRST205') {
-                    console.warn(`⚠️ Table "featured_destinations" missing (Code: ${error.code}). Using fallback data.`);
+                    // Use debug level to avoid console noise when tables are intentionally missing/not yet created
+                    console.debug(`ℹ️ Table "featured_destinations" missing (Code: ${error.code}). Using fallback data.`);
                     
                     // Try to fetch from 'tours' table as alternative source if dedicated table is missing
                     try {

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Tour, TourService } from '../lib/services/tourService';
 import { useRegionsData } from '../lib/hooks/useRegionsData';
+import { AdminPageSkeleton } from '../components/skeletons/AdminPageSkeleton';
 
 const AdminToursPage: React.FC = () => {
     const [tours, setTours] = useState<Tour[]>([]);
@@ -118,7 +119,7 @@ const AdminToursPage: React.FC = () => {
         return buttons;
     };
 
-    if (loading && tours.length === 0) return <div className="p-8 text-center">Loading tours...</div>;
+    if (loading && tours.length === 0) return <AdminPageSkeleton />;
     if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
     return (

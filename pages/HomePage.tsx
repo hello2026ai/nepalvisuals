@@ -46,10 +46,12 @@ const HomePage: React.FC = () => {
     }, [stats]);
     return (
         <>
-            <header className="relative -mt-[100px] min-h-[85vh] flex items-center justify-center overflow-hidden rounded-b-2xl md:rounded-b-[3rem]">
-                <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB7oJvicfMYF2tTDspjyC_dNc6L_u3AS3u1gLba-Lnwk50u3YZOQu3BkxHIjp6qOm8t6-NdGiFKjAxtFwVL1N5XTTmnRQEsYogfMQZfRLPcoYucuMk0ybPhdPiwooV3LVT_bSwr3Ld2FpmTFJP4MwAgLfiztLA7j1qaUiTbpBEa-bWWzUGuIU_wFBqd0T-S_5J3Xle-0CUZZp84IdPuI3fpZyaG0t50baFmMaApe8X6CrvYDROuk7W1PI6KncjUpZ3zKUnhjmCd4hWa')" }}>
+            <header className="relative -mt-[100px] min-h-[85vh] flex items-center justify-center z-20">
+                <div className="absolute inset-0 z-0 overflow-hidden rounded-b-2xl md:rounded-b-[3rem]">
+                    <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB7oJvicfMYF2tTDspjyC_dNc6L_u3AS3u1gLba-Lnwk50u3YZOQu3BkxHIjp6qOm8t6-NdGiFKjAxtFwVL1N5XTTmnRQEsYogfMQZfRLPcoYucuMk0ybPhdPiwooV3LVT_bSwr3Ld2FpmTFJP4MwAgLfiztLA7j1qaUiTbpBEa-bWWzUGuIU_wFBqd0T-S_5J3Xle-0CUZZp84IdPuI3fpZyaG0t50baFmMaApe8X6CrvYDROuk7W1PI6KncjUpZ3zKUnhjmCd4hWa')" }}>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-b from-secondary-dark/60 via-secondary-dark/30 to-background-dark/90"></div>
                 </div>
-                <div className="absolute inset-0 z-0 bg-gradient-to-b from-secondary-dark/60 via-secondary-dark/30 to-background-dark/90"></div>
                 <div className="relative z-10 container mx-auto px-4 pt-32 text-center max-w-4xl">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/30 border border-white/20 backdrop-blur-sm mb-6">
                         <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>

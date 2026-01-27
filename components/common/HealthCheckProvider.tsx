@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ServiceErrorBoundary from './ServiceErrorBoundary';
 import ServiceMonitor from './ServiceMonitor';
+import { databaseBootstrapper } from '../../lib/services/databaseBootstrapper';
 
 interface HealthCheckProviderProps {
   children: React.ReactNode;
@@ -21,6 +22,21 @@ export const HealthCheckProvider: React.FC<HealthCheckProviderProps> = ({
   enableMonitoring = true,
   showMonitorUI = false
 }) => {
+  useEffect(() => {
+    // Run database bootstrap to self-heal missing tables
+    // This attempts to create tables via RPC if they don't exist
+    databaseBootstrapper.verifyAndCreateTables()
+        .then(result => {
+            if (result.success) {
+                console.log('Database bootstrap successful:', result.message);
+            } else {
+                // Use debug to avoid console noise if RPC is missing (common in dev)
+                console.debug('Database bootstrap skipped or failed:', result.message);
+            }
+        })
+        .catch(err => console.debug('Database bootstrap error:', err));
+  }, []);
+
   const handleServiceError = (error: Error, errorInfo: React.ErrorInfo) => {
     console.error('Service error detected:', error, errorInfo);
     

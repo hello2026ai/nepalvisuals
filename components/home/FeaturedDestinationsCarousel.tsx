@@ -3,6 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { Link } from 'react-router-dom';
 import { FeaturedDestination } from '../../lib/services/featuredDestinationService';
+import { FeaturedDestinationSkeleton } from '../skeletons/FeaturedDestinationSkeleton';
 import { sanitizeHtml } from '../../lib/utils/htmlUtils';
 
 interface FeaturedDestinationsCarouselProps {
@@ -59,17 +60,7 @@ const FeaturedDestinationsCarousel = forwardRef<{ scrollLeft: () => void; scroll
                 <div className="flex gap-6">
                     {Array.from({ length: 3 }).map((_, index) => (
                         <div key={index} className="flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.333%] min-w-0">
-                            <div className="flex flex-col gap-4 p-3 bg-surface-dark rounded-[2rem] border border-white/5 h-full">
-                                <div className="w-full aspect-[4/3] rounded-[1.5rem] bg-white/5 animate-pulse"></div>
-                                <div className="px-3 pb-3 space-y-3">
-                                    <div className="flex justify-between items-start">
-                                        <div className="h-6 w-1/2 bg-white/5 rounded animate-pulse"></div>
-                                        <div className="h-6 w-12 bg-white/5 rounded animate-pulse"></div>
-                                    </div>
-                                    <div className="h-4 w-full bg-white/5 rounded animate-pulse"></div>
-                                    <div className="h-4 w-3/4 bg-white/5 rounded animate-pulse"></div>
-                                </div>
-                            </div>
+                            <FeaturedDestinationSkeleton />
                         </div>
                     ))}
                 </div>

@@ -252,7 +252,17 @@ const TourPricingCard: React.FC<TourPricingCardProps> = ({
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-3">
                     <Link 
-                        to={isBookingOptionSelected ? "/booking/checkout" : "#"} 
+                        to={isBookingOptionSelected ? "/booking/checkout" : "#"}
+                        state={isBookingOptionSelected ? {
+                            tourId: tour.id,
+                            tourName: tour.name,
+                            tourImage: tour.featured_image,
+                            selectedDate: selectedDate?.toISOString(),
+                            selectedDepartureId,
+                            guestCount,
+                            basePrice,
+                            totalPrice
+                        } : undefined}
                         className={`w-full py-4 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group ${isBookingOptionSelected ? 'bg-primary hover:bg-primary-dark shadow-primary/20' : 'bg-gray-600 cursor-not-allowed'}`}
                         onClick={(e) => !isBookingOptionSelected && e.preventDefault()}
                         aria-disabled={!isBookingOptionSelected}

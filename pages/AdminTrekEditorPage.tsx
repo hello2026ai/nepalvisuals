@@ -10,10 +10,11 @@ import RegionSelect from '../components/common/RegionSelect';
 import PricingTab from './AdminTrekEditorPage-PricingTab';
 import InclusionsTab from './AdminTrekEditorPage-InclusionsTab';
 import FaqsTab from './AdminTrekEditorPage-FaqsTab';
+import MapTab from './AdminTrekEditorPage-MapTab';
 import TripHighlightsEditor from '../components/admin/TripHighlightsEditor';
 import { MediaService } from '../lib/services/mediaService';
 
-const TABS = ['Details', 'Pricing', 'Highlights', 'Itinerary', 'Inclusions', 'Images', 'FAQs'];
+const TABS = ['Details', 'Pricing', 'Highlights', 'Itinerary', 'Inclusions', 'Images', 'FAQs', 'Map'];
 
 const TabButton: React.FC<{ name: string; activeTab: string; setActiveTab: (name: string) => void; }> = ({ name, activeTab, setActiveTab }) => (
     <button
@@ -596,7 +597,8 @@ const AdminTrekEditorPage: React.FC = () => {
             const safeFields = [
                 'name', 'url_slug', 'destination', 'region', 'country', 'category',
                 'status', 'price', 'duration', 'difficulty', 'guide_language', 'tour_type',
-                'description', 'meta_title', 'meta_description', 'featured_image', 'published_at'
+                'description', 'meta_title', 'meta_description', 'featured_image', 'published_at',
+                'route_geojson'
             ];
             
             // Create a safe data object with only valid database fields
@@ -879,6 +881,11 @@ const AdminTrekEditorPage: React.FC = () => {
                     setTour(prev => ({ ...prev, ...updates }));
                     setIsFormDirty(true);
                 }} refreshTour={loadTourData} />}
+
+                {activeTab === 'Map' && <MapTab tour={tour} onChange={(updates) => {
+                    setTour(prev => ({ ...prev, ...updates }));
+                    setIsFormDirty(true);
+                }} />}
             </div>
 
              <div className="mt-8 pt-6 border-t border-admin-border flex justify-end gap-3">

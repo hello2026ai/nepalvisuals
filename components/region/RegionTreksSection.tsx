@@ -1,6 +1,7 @@
 import React from 'react';
 import { useToursByRegion } from '../../lib/hooks/useToursByRegion';
 import { TrekCard } from '../tour/TrekCard';
+import { TrekCardSkeleton } from '../skeletons/TrekCardSkeleton';
 
 interface RegionTreksSectionProps {
   regionName: string;
@@ -10,7 +11,13 @@ export const RegionTreksSection: React.FC<RegionTreksSectionProps> = ({ regionNa
   const { tours, loading, error } = useToursByRegion(regionName);
 
   if (loading) {
-    return <div className="py-12 text-center text-text-secondary">Loading treks...</div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <TrekCardSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
 
   if (error) {

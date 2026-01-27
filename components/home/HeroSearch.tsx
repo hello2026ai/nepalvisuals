@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../lib/hooks/useDebounce';
 import { TourService, Tour } from '../../lib/services/tourService';
+import { SearchSuggestionSkeleton } from '../skeletons/SearchSuggestionSkeleton';
 
 export const HeroSearch: React.FC = () => {
     const navigate = useNavigate();
@@ -39,6 +40,10 @@ export const HeroSearch: React.FC = () => {
             } catch (error) {
                 console.error('Error fetching suggestions:', error);
                 setSuggestions([]);
+                // Ensure dropdown opens to show no results state if query exists
+                if (debouncedQuery.trim()) {
+                    setIsOpen(true);
+                }
             } finally {
                 setLoading(false);
             }
@@ -105,7 +110,7 @@ export const HeroSearch: React.FC = () => {
         setError(null);
 
         try {
-            navigate(`/trek/${tour.url_slug}`, {
+            navigate(`/trip/${tour.url_slug}`, {
                 state: {
                     fromSearch: true,
                     searchQuery: query
@@ -187,10 +192,16 @@ export const HeroSearch: React.FC = () => {
             {isOpen && (
                 <div 
                     id="search-suggestions"
-                    className="absolute top-full left-0 w-full bg-surface-dark/95 backdrop-blur-xl border-x border-b border-white/10 rounded-b-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                    className="absolute top-full left-0 w-full bg-surface-dark/95 backdrop-blur-xl border-x border-b border-white/10 rounded-b-2xl shadow-2xl overflow-hidden animate-fadeIn z-[60]"
                     role="listbox"
                 >
-                    {suggestions.length > 0 ? (
+                    {loading ? (
+                        <div className="py-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <SearchSuggestionSkeleton key={i} />
+                            ))}
+                        </div>
+                    ) : suggestions.length > 0 ? (
                         <ul className="py-2">
                             {suggestions.map((tour, index) => (
                                 <li 
@@ -219,7 +230,7 @@ export const HeroSearch: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="font-medium truncate">{tour.name}</div>
+                                        <div className="font-medium truncate text-white">{tour.name}</div>
                                         <div className="text-xs text-white/50 truncate flex items-center gap-2">
                                             <span>{tour.duration || 'N/A'}</span>
                                             <span>•</span>
