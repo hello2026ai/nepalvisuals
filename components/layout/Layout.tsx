@@ -36,7 +36,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     return (
         <div className="relative flex flex-col min-h-screen w-full">
-            <div className={`transition-all duration-300 ${isHeaderVisible ? 'opacity-100' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+            <div className={`sticky top-0 z-[100] transition-all duration-300 pointer-events-none ${isHeaderVisible ? 'opacity-100' : 'opacity-0 -translate-y-4'}`}>
                  <Header />
             </div>
             <div id="tour-info-portal" className="absolute top-0 left-0 w-full z-20 pointer-events-none"></div>
