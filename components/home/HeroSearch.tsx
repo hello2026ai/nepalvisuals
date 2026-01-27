@@ -226,7 +226,7 @@ export const HeroSearch: React.FC = () => {
                     <span className="material-symbols-outlined">arrow_forward</span>
                 </button>
             </div>
-
+{/* test */}
             {isOpen && (
                 dropdownRect && createPortal(
                     <div
