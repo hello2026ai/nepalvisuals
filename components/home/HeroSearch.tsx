@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import ReactDOM from 'react-dom';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../lib/hooks/useDebounce';
 import { TourService, Tour } from '../../lib/services/tourService';
@@ -20,15 +20,29 @@ export const HeroSearch: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
+    // Measure position for portal
+    useLayoutEffect(() => {
         const updateRect = () => {
             if (!containerRef.current) return;
             const r = containerRef.current.getBoundingClientRect();
-            setDropdownRect({ left: r.left, top: r.bottom, width: r.width });
+            // Only update if values actually changed to avoid loops
+            setDropdownRect(prev => {
+                if (prev && prev.left === r.left && prev.top === r.bottom && prev.width === r.width) {
+                    return prev;
+                }
+                return { left: r.left, top: r.bottom, width: r.width };
+            });
         };
-        if (isOpen) updateRect();
+
+        if (isOpen) {
+            updateRect();
+            // Immediate update for any layout shifts
+            requestAnimationFrame(updateRect);
+        }
+        
         window.addEventListener('resize', updateRect);
         window.addEventListener('scroll', updateRect, true);
+        
         return () => {
             window.removeEventListener('resize', updateRect);
             window.removeEventListener('scroll', updateRect, true);
@@ -149,7 +163,7 @@ export const HeroSearch: React.FC = () => {
 
     return (
         <div 
-            className="relative w-full max-w-2xl group z-50" 
+            className="relative w-full max-w-2xl group z-[9999]" 
             ref={containerRef}
         >
             <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
@@ -207,7 +221,7 @@ export const HeroSearch: React.FC = () => {
 
             {isOpen && (
                 dropdownRect
-                    ? ReactDOM.createPortal(
+                    ? createPortal(
                         <div
                             id="search-suggestions"
                             role="listbox"
