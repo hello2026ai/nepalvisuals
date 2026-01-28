@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SettingsService } from '../../lib/services/settingsService';
 import { supabase } from '../../lib/supabaseClient';
+import { AuthService } from '../../lib/services/authService';
 
 const NavLink: React.FC<{ to: string; icon: string; label: string; exact?: boolean; isSubLink?: boolean; isCollapsed?: boolean }> = ({ to, icon, label, exact = false, isSubLink = false, isCollapsed = false }) => {
     const location = useLocation();
@@ -93,7 +94,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }, []);
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        await AuthService.logout();
         navigate('/admin/login');
     };
     

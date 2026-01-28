@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { withExponentialBackoff } from '../lib/utils/retryUtils';
+import { AuthService } from '../lib/services/authService';
 
 const AdminLoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -21,6 +22,9 @@ const AdminLoginPage: React.FC = () => {
         
         const error = windowParams.get('error') || hashParams.get('error');
         const errorDescription = windowParams.get('error_description') || hashParams.get('error_description');
+        
+        // Check for state error (from RequireAuth redirect)
+        const stateError = (location.state as any)?.error;
 
         if (error) {
             console.error('OAuth Error:', error, errorDescription);
@@ -37,8 +41,10 @@ const AdminLoginPage: React.FC = () => {
             
             // Also navigate to clean up any hash params if they existed
             navigate('/admin/login', { replace: true });
+        } else if (stateError) {
+             setError(stateError);
         }
-    }, [location.search, navigate]);
+    }, [location.search, navigate, location.state]);
 
     const from = (location.state as any)?.from?.pathname || '/admin/tours';
 
@@ -71,25 +77,11 @@ const AdminLoginPage: React.FC = () => {
         setError(null);
 
         try {
-            // Use retry logic for network stability (not for auth failures)
-            const { error } = await withExponentialBackoff(async () => {
-                return await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
-            });
-
-            if (error) throw error;
+            await AuthService.loginWithProfiles(email, password);
 
             navigate(from, { replace: true });
         } catch (err: any) {
-            // Handle Rate Limiting (429) specifically
-            if (err.status === 429) {
-                setError("Too many login attempts. Please wait a moment before trying again.");
-            } else {
-                // Use a generic error message for security to avoid revealing if the user exists
-                setError("The username or password you entered is incorrect. Please try again or click 'Forgot Password' to reset your credentials.");
-            }
+            setError(err?.message || "Login failed. Please try again.");
         } finally {
             setLoading(false);
         }

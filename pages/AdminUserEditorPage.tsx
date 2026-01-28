@@ -70,7 +70,7 @@ const AdminUserEditorPage: React.FC = () => {
         setLoading(true);
         try {
             if (isEditing && userId) {
-                await UserService.updateUser(userId, user);
+                await UserService.updateUser(userId, user, password || undefined);
                 alert('User updated successfully!');
             } else {
                 await UserService.createUser(user, password);

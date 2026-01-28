@@ -224,7 +224,7 @@ const AdminMediaPage: React.FC = () => {
         
         setLoading(true);
         try {
-            const uploadPromises = Array.from(files).map(file => MediaService.uploadFile(file));
+            const uploadPromises = Array.from(files).map((file) => MediaService.uploadFile(file as File));
             const newItems = await Promise.all(uploadPromises);
             setMediaItems(prev => [...newItems, ...prev]);
         } catch (err: any) {
@@ -285,7 +285,7 @@ const AdminMediaPage: React.FC = () => {
     const handleBulkUpdate = async (updates: { alt_text?: string; caption?: string }) => {
         try {
             const updatePromises = Array.from(selectedItems).map(id => 
-                MediaService.updateMediaMetadata(id, updates)
+                MediaService.updateMediaMetadata(id as string, updates)
             );
             await Promise.all(updatePromises);
             

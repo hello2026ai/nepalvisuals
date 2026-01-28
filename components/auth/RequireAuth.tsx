@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { AdminLogger } from '../../lib/services/adminLogger';
+import { AuthService } from '../../lib/services/authService';
 
 interface RequireAuthProps {
     children: React.ReactNode;
@@ -36,10 +37,15 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
             }
 
             const { data: { session } } = await supabase.auth.getSession();
-            
             if (!session) {
-                setIsAuthenticated(false);
-                return;
+                const custom = AuthService.getCustomSession();
+                if (custom && (custom.role === 'Admin' || custom.role === 'Super Admin')) {
+                    setIsAuthenticated(true);
+                    return;
+                } else {
+                    setIsAuthenticated(false);
+                    return;
+                }
             }
 
             // Enforce RBAC: Check if user has Admin or Super Admin role
@@ -53,6 +59,8 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
                 if (error || !profile || (profile.role !== 'Admin' && profile.role !== 'Super Admin')) {
                     console.warn('Access denied: User is not an admin', profile);
                     setIsAuthenticated(false);
+                    // Sign out the user so they can try a different account
+                    await supabase.auth.signOut();
                 } else {
                     setIsAuthenticated(true);
                     
@@ -103,7 +111,7 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/admin/login" state={{ from: location }} replace />;
+        return <Navigate to="/admin/login" state={{ from: location, error: "Access Denied: You do not have administrator privileges." }} replace />;
     }
 
     return <>{children}</>;

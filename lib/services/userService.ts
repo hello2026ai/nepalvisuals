@@ -1,4 +1,14 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
+import * as bcrypt from 'bcryptjs';
+
+// Create a separate admin client for user management
+// WARNING: This requires the Service Role Key to be exposed in .env
+// This is acceptable for local development/admin demos but NOT for production client-side apps.
+const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = serviceRoleKey 
+  ? createClient(import.meta.env.VITE_SUPABASE_URL, serviceRoleKey)
+  : null;
 
 export interface UserProfile {
   id: string;
@@ -9,6 +19,7 @@ export interface UserProfile {
   status: 'Active' | 'Inactive' | 'Banned';
   created_at: string;
   updated_at: string;
+  password?: string | null;
 }
 
 export const UserService = {
@@ -34,19 +45,53 @@ export const UserService = {
   },
 
   async createUser(user: Partial<UserProfile>, password?: string) {
-    // In a real app, we would create the user in Supabase Auth first.
-    // const { data: authData, error: authError } = await supabase.auth.signUp({
-    //   email: user.email!,
-    //   password: password!,
-    //   options: { data: { full_name: user.full_name } }
-    // });
-    // if (authError) throw authError;
-    // return authData;
+    if (!supabaseAdmin) {
+      throw new Error('Admin privileges required. Service Role Key not configured.');
+    }
+
+    const email = user.email ? user.email.trim().toLowerCase() : '';
+    if (!email) throw new Error('Email is required');
+
+    // 1. Create user in Supabase Auth (this generates the UUID)
+    // We use admin.createUser to avoid signing in as the new user
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: password || 'tempPass123!', // Auth requires a password, even if we verify via profiles
+      email_confirm: true,
+      user_metadata: { full_name: user.full_name }
+    });
+
+    if (authError) {
+      console.error('Auth creation failed:', authError);
+      throw new Error(authError.message);
+    }
+
+    if (!authUser.user) {
+      throw new Error('User creation failed: No user returned');
+    }
+
+    // 2. Prepare Profile Payload
+    // Note: The 'profiles' table might have a trigger that auto-inserts rows on auth.users insert.
+    // We try to upsert (insert or update) to handle both cases.
+    const payload: Partial<UserProfile> = { 
+      ...user,
+      id: authUser.user.id, // CRITICAL: Use the ID from Auth
+      email: email
+    };
     
-    // For this admin panel demo (managing the 'profiles' table directly):
+    if (password && password.trim().length > 0) {
+      try {
+        const hash = await bcrypt.hash(password, 12);
+        payload.password = hash;
+      } catch (err) {
+        console.error('Password hashing failed:', err);
+        // We continue, but password won't be in profile (auth has it though)
+      }
+    }
+
     const { data, error } = await supabase
       .from('profiles')
-      .insert(user)
+      .upsert(payload) // Upsert to handle potential triggers
       .select()
       .single();
     
@@ -54,10 +99,30 @@ export const UserService = {
     return data as UserProfile;
   },
 
-  async updateUser(id: string, updates: Partial<UserProfile>) {
+  async updateUser(id: string, updates: Partial<UserProfile>, newPassword?: string) {
+    // Remove 'password' from updates to avoid accidentally setting it to null/empty
+    // if it was present in the updates object (e.g. from state)
+    const { password: _ignored, ...cleanUpdates } = updates;
+    
+    const payload: Partial<UserProfile> = { 
+      ...cleanUpdates,
+      email: cleanUpdates.email ? cleanUpdates.email.trim().toLowerCase() : cleanUpdates.email,
+      updated_at: new Date().toISOString() 
+    };
+
+    if (newPassword && newPassword.trim().length > 0) {
+      try {
+        const hash = await bcrypt.hash(newPassword, 12);
+        payload.password = hash;
+      } catch (err) {
+        console.error('Password hashing failed:', err);
+        throw new Error('Failed to secure password');
+      }
+    }
+
     const { data, error } = await supabase
       .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(payload)
       .eq('id', id)
       .select()
       .single();
@@ -67,7 +132,6 @@ export const UserService = {
   },
 
   async deleteUser(id: string) {
-    // In real app: await supabase.auth.admin.deleteUser(id);
     const { error } = await supabase
       .from('profiles')
       .delete()
